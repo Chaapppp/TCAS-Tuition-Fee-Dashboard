@@ -8,7 +8,7 @@ BASE_URL = "https://course.mytcas.com"
 async def scrape_mytcas():
 
     all_results = []
-    search_terms = ["วิศวกรรมปัญญาประดิษฐ์"]
+    search_terms = ["วิศวกรรมปัญญาประดิษฐ์", "วิศวกรรมคอมพิวเตอร์"]
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
