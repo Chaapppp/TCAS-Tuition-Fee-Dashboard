@@ -1,5 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright
+from pathlib import Path
+import json
 
 BASE_URL = "https://course.mytcas.com"
 
@@ -151,5 +153,13 @@ async def scrape_mytcas():
 
         await browser.close()
 
+    output_dir = Path("data")
+    output_dir.mkdir(parents=True, exist_ok=True) 
+    output_path = output_dir / "course_data.json"
+    
+    output_path.write_text(json.dumps(all_results, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\nDONE! Saved all collected data to {output_path.absolute()} with {len(all_results)} entries.")
+
 if __name__ == "__main__":
+    Path("data/web_scraping").mkdir(parents=True, exist_ok=True)
     asyncio.run(scrape_mytcas())
