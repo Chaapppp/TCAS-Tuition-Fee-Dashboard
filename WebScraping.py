@@ -161,5 +161,5 @@ async def scrape_mytcas():
     print(f"\nDONE! Saved all collected data to {output_path.absolute()} with {len(all_results)} entries.")
 
 if __name__ == "__main__":
-    Path("data/web_scraping").mkdir(parents=True, exist_ok=True)
+    Path("data").mkdir(parents=True, exist_ok=True)
     asyncio.run(scrape_mytcas())
