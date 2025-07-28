@@ -5,8 +5,9 @@ import dash
 from dash import html, dcc, dash_table
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
+import plotly.express as px
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.SOLAR])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.JOURNAL])
 server = app.server
 
 DATA_FILE_PATH = 'data/course_semester_tuition.json'
@@ -28,12 +29,16 @@ except json.JSONDecodeError:
 
 df = pd.DataFrame(all_programs_data)
 
+df.rename(columns={'ค่าใช้จ่ายต่อภาคการศึกษา': 'Semester Cost (THB)'}, inplace=True)
+df['Semester Cost (THB)'] = pd.to_numeric(df['Semester Cost (THB)'], errors='coerce').fillna(0)
+program_types = df['details'].apply(lambda x: x.get('ประเภทหลักสูตร') if isinstance(x, dict) else None).dropna().unique()
+program_type_options = [{'label': 'All Types', 'value': 'all'}] + \
+                       [{'label': pt, 'value': pt} for pt in sorted(program_types)]
+
 # --- Prepare Data for Dash Tables ---
 def prepare_table_data(dataframe):
 
     df_copy = dataframe.copy() 
-
-    df_copy['ค่าใช้จ่ายต่อภาคการศึกษา'] = pd.to_numeric(df_copy['ค่าใช้จ่ายต่อภาคการศึกษา'], errors='coerce').fillna(0)
 
     def get_admission_text(details):
         if not isinstance(details, dict):
@@ -51,14 +56,13 @@ def prepare_table_data(dataframe):
         'Program Title',
         'university',
         'faculty',
-        'ค่าใช้จ่ายต่อภาคการศึกษา',
+        'Semester Cost (THB)', 
         'Admission Rounds'
     ]].copy()
 
     display_df.rename(columns={
         'university': 'University',
         'faculty': 'Faculty',
-        'ค่าใช้จ่ายต่อภาคการศึกษา': 'Tuition Fees per Semester (THB)'
     }, inplace=True)
 
     return display_df.to_dict('records')
@@ -69,13 +73,22 @@ coe_programs_df = df[df['search_term'].str.contains('วิศวกรรมค
 initial_ai_data = prepare_table_data(ai_programs_df)
 initial_coe_data = prepare_table_data(coe_programs_df)
 
+program_types = df['details'].apply(lambda x: x.get('ประเภทหลักสูตร') if isinstance(x, dict) else None).dropna().unique()
+program_type_options = [{'label': 'All Types', 'value': 'all'}] + \
+                       [{'label': pt, 'value': pt} for pt in sorted(program_types)]
+
 table_columns = [
     {"name": "Program Title", "id": "Program Title"},
     {"name": "University", "id": "University"},
     {"name": "Faculty", "id": "Faculty"},
-    {"name": "Tuition Fees per Semester (THB)", "id": "Tuition Fees per Semester (THB)", "type": "numeric"},
+    {"name": "Tuition Fees per Semester (THB)", "id": "Semester Cost (THB)", "type": "numeric"},
     {"name": "Admission Rounds", "id": "Admission Rounds"},
 ]
+
+CUSTOM_PROGRAM_TYPE_COLORS = {
+    'วิศวกรรมปัญญาประดิษฐ์': "#c1edff",  
+    'วิศวกรรมคอมพิวเตอร์': "#F16C55"   
+}
 
 # --- Dash App Layout ---
 app.layout = dbc.Container([
@@ -86,7 +99,7 @@ app.layout = dbc.Container([
         html.Section([
             html.H2(html.B("Overview"), className="section-title"),
             dbc.Row([
-                dbc.Col(html.Label("Filter by Semester Cost:", className="lead"), width="auto"),
+                dbc.Col(html.Label(html.B("Filter by Semester Cost:"), className="lead"), width="auto"),
                 dbc.Col(dcc.Dropdown(
                     id='cost-range-dropdown',
                     options=[
@@ -102,7 +115,7 @@ app.layout = dbc.Container([
             ], className="mb-4 align-items-center"),
 
             dbc.Row([
-                dbc.Col(html.Label("Filter by Program Type:", className="lead"), width="auto"),
+                dbc.Col(html.Label(html.B("Filter by Program Type:"), className="lead"), width="auto"),
                 dbc.Col(dcc.Dropdown(
                     id='cost-program-type-dropdown', 
                     options=[
@@ -114,18 +127,29 @@ app.layout = dbc.Container([
                     clearable=False,
                 ), width=12),
             ], className="mb-4 align-items-center"),
+
+            dbc.Row([
+                dbc.Col(html.Label(html.B("Filter by Program Language Type:"), className="lead"), width="auto"),
+                dbc.Col(dcc.Dropdown(
+                    id='language-type-dropdown', 
+                    options=program_type_options, 
+                    value='all',
+                    clearable=False,
+                ), width=12),
+            ], className="mb-4 align-items-center"),
+
             dash_table.DataTable(
                 id='cost-programs-table',
                 columns=table_columns,
                 data=prepare_table_data(df), 
                 style_table={'overflowX': 'auto', 'borderRadius': '0.75rem', 'boxShadow': '0 2px 10px rgba(0,0,0,0.03)'},
                 style_cell={
-                    'textAlign': 'left',
+                    'textAlign': 'center',
                     'padding': '0.75rem 1rem',
                     'height': 'auto',
                 },
                 style_header={
-                    'backgroundColor': '#edf2f7',
+                    'backgroundColor': "#f1f9fc",
                     'fontWeight': 'bold',
                     'color': '#4a5568',
                     'textTransform': 'uppercase',
@@ -141,32 +165,42 @@ app.layout = dbc.Container([
                         'if': {'column_id': 'Admission Rounds'},
                         'whiteSpace': 'pre-wrap',
                         'textAlign': 'left',
-                        'width': '500px', # Fixed width as requested
+                        'width': '500px', 
                     },
                     {
                         'if': {'column_id': 'Program Title'},
                         'whiteSpace': 'normal',
                         'textAlign': 'left',
-                        'width': '400px', # Fixed width as requested
+                        'width': '400px', 
                     }
                 ],
                 page_size=10,
                 filter_action="native",
                 sort_action="native",
-            )
-        ], className="card p-4 mb-5"), 
+            ),
 
+            html.Div([
+                html.H3(html.B("Visual Insights"), className="section-title"),
+                dbc.Row([
+                    dbc.Col(dcc.Graph(id='tuition-distribution-graph'), md=12), 
+                    dbc.Col(dcc.Graph(id='avg-tuition-university-graph'), md=12), 
+                ]),
+            ], className="card p-4 mb-4"), 
+
+        ], className="card p-4 mb-5"), 
  
     ], color="primary", type="grow", fullscreen=False)
-], fluid=True, className="py-4")
+], fluid=True, className="py-4", style={'backgroundColor': '#e4f7fe'})
 
-# --- Callbacks ---
 @app.callback(
     Output('cost-programs-table', 'data'),
+    Output('tuition-distribution-graph', 'figure'),
+    Output('avg-tuition-university-graph', 'figure'),
     Input('cost-range-dropdown', 'value'),
-    Input('cost-program-type-dropdown', 'value')
+    Input('cost-program-type-dropdown', 'value'),
+    Input('language-type-dropdown', 'value')   
 )
-def update_cost_table(selected_range, selected_type):
+def update_cost_table(selected_range, selected_type, selected_language_type):
     filtered_df = df.copy() 
 
     if selected_range != 'all':
@@ -180,8 +214,51 @@ def update_cost_table(selected_range, selected_type):
         filtered_df = filtered_df[filtered_df['search_term'].str.contains('ปัญญาประดิษฐ์', na=False)]
     elif selected_type == 'coe':
         filtered_df = filtered_df[filtered_df['search_term'].str.contains('วิศวกรรมคอมพิวเตอร์', na=False)]
+    if selected_language_type != 'all':
+        filtered_df = filtered_df[filtered_df['details'].apply(lambda x: x.get('ประเภทหลักสูตร') == selected_language_type if isinstance(x, dict) else False)]
 
-    return prepare_table_data(filtered_df)
+    # 1. Tuition Fee Distribution (Histogram)
+    tuition_dist_fig = px.histogram(
+        filtered_df,
+        x='Semester Cost (THB)',
+        nbins=20,
+        title='<b>Tuition Fee Distribution by Program Type (AI/CoE)</b>',
+        labels={'Semester Cost (THB)': 'Semester Cost (THB)', 'search_term': 'Program Type (AI/CoE)'},
+        color='search_term',
+        color_discrete_sequence=px.colors.qualitative.Dark24,
+        color_discrete_map=CUSTOM_PROGRAM_TYPE_COLORS
+    )
+    tuition_dist_fig.update_layout(
+        plot_bgcolor="#f8f7f7",
+        paper_bgcolor="#f8f7f7",
+        font_color='#4a5568',
+        xaxis_title="Semester Cost (THB)",
+        yaxis_title="Number of Programs"
+    )
+
+    # 2. Average Tuition Fee by University (Bar Chart)
+    avg_tuition_by_uni_type = filtered_df.groupby(['university', 'search_term'])['Semester Cost (THB)'].mean().reset_index()
+    avg_tuition_by_uni_type = avg_tuition_by_uni_type.sort_values(by='Semester Cost (THB)', ascending=False)
+    avg_tuition_uni_fig = px.bar(
+        avg_tuition_by_uni_type,
+        x='university',
+        y='Semester Cost (THB)',
+        color='search_term',
+        title='<b>Average Semester Tuition by University and Program Type (AI/CoE)</b>', 
+        labels={'Semester Cost (THB)': 'Average Semester Cost (THB)', 'university': 'University', 'search_term': 'Program Type (AI/CoE)'}, 
+        barmode='group',
+        color_discrete_sequence=px.colors.qualitative.Dark24,
+        color_discrete_map=CUSTOM_PROGRAM_TYPE_COLORS
+    )
+    avg_tuition_uni_fig.update_layout(
+        plot_bgcolor="#f8f7f7",
+        paper_bgcolor="#f8f7f7",
+        font_color='#4a5568',
+        xaxis_title="University",
+        yaxis_title="Average Semester Cost (THB)"
+    )
+
+    return prepare_table_data(filtered_df), tuition_dist_fig, avg_tuition_uni_fig
 
 if __name__ == '__main__':
     app.run(debug=True)
