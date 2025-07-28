@@ -1,4 +1,4 @@
-﻿# TCAS University Program Dashboard (Computer & AI Engineering)
+﻿# TCAS University Program Dashboard [Computer & AI Engineering]
 This project presents a Dash web application designed to visualize pre-processed tuition fee data for Computer Engineering and Artificial Intelligence Engineering programs offered by Thai universities. The dashboard focuses on providing an executive summary, allowing users to easily compare tuition costs and explore programs based on various filters.
 
 ## Project Overview
@@ -47,5 +47,6 @@ Open your web browser and navigate to the following address:
 ```http://127.0.0.1:8050/```
 
 The dashboard will load, displaying the university program data with interactive filters.
+
 
 **Data Source**: [Thai University Central Admission System (TCAS)](https://course.mytcas.com)
